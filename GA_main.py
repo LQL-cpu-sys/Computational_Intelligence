@@ -2,6 +2,7 @@ import random
 import numpy as np
 from collections import defaultdict
 from typing import Dict, List, Tuple
+import matplotlib.pyplot as plt
 
 # 导入配置和模糊逻辑
 from data import (
@@ -659,6 +660,7 @@ def genetic_algorithm(devices, user_constraints, population_size=50, generations
         population.append(individual)
     
     best_history = []
+    avg_history = []  # 新增：记录平均适应度
     
     for gen in range(generations):
         fitness_results = [calculate_fitness(ind, devices, user_constraints) for ind in population]
@@ -669,6 +671,9 @@ def genetic_algorithm(devices, user_constraints, population_size=50, generations
         
         best_ind, best_fit = elites[0]
         best_history.append(best_fit["fitness"])
+        avg_fitness = sum(res["fitness"] for res in fitness_results) / len(fitness_results)
+        avg_history.append(avg_fitness)  # 记录平均适应度
+        
         print(f"Generation {gen}: Fitness={best_fit['fitness']:.4f} "
               f"Cost={best_fit['electricity_cost']:.2f}+{best_fit['power_penalty']:.2f} "
               f"Comfort={best_fit['comfort_penalty']:.2f}")
@@ -681,7 +686,6 @@ def genetic_algorithm(devices, user_constraints, population_size=50, generations
                 weights=[res["fitness"] for res in fitness_results],
                 k=2
             )
-            # 80%概率进行交叉，20%概率直接选择较优父代
             if random.random() < 0.8:
                 child = crossover(parents[0], parents[1], user_constraints, devices)
             else:
@@ -694,12 +698,24 @@ def genetic_algorithm(devices, user_constraints, population_size=50, generations
         
         population = new_population
     
+    # 绘制适应度变化曲线
+    plt.figure(figsize=(10, 6))
+    plt.plot(range(generations), best_history, 'b-', label='Best Fitness')
+    plt.plot(range(generations), avg_history, 'r--', label='Average Fitness')
+    plt.xlabel('Generation')
+    plt.ylabel('Fitness Value')
+    plt.title('Genetic Algorithm Fitness Evolution')
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+    
     best_individual = max(population, key=lambda x: calculate_fitness(x, devices, user_constraints)["fitness"])
     best_result = calculate_fitness(best_individual, devices, user_constraints)
     
     return {
         "schedule": best_individual,
         "fitness_history": best_history,
+        "avg_fitness_history": avg_history,  # 新增平均适应度历史
         "statistics": {
             "electricity_cost": best_result["electricity_cost"],
             "power_penalty": best_result["power_penalty"],
@@ -707,6 +723,7 @@ def genetic_algorithm(devices, user_constraints, population_size=50, generations
             "peak_power": max(best_result["hourly_power"].values())
         }
     }
+
 
 def print_schedule(schedule):
     """打印调度方案"""
@@ -737,9 +754,9 @@ if __name__ == "__main__":
     # 2. 生成设备配置
     devices = generate_device_profiles()
     
-    # 3. 运行遗传算法（原代码误写为粒子群算法）
+    # 3. 运行遗传算法
     print("\n正在优化调度方案...")
-    result = genetic_algorithm(devices, user_input)  # 修改为正确的函数名
+    result = genetic_algorithm(devices, user_input)
     
     # 4. 输出结果
     print_schedule(result["schedule"])
